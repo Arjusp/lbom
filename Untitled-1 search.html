@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assembly Monitor - BOM Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #f9fafb;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 1.5rem;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .header-title h1 {
+            font-size: 1.5rem;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-title p {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .save-status {
+            font-size: 0.875rem;
+            color: #10b981;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #f9fafb;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-success {
+            background: #16a34a;
+            color: white;
+            border-color: #16a34a;
+        }
+
+        .btn-success:hover {
+            background: #15803d;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .search-box {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.5rem 0.5rem 0.5rem 2.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .parts-list {
+            flex: 1;
+            overflow: auto;
+            padding: 1.5rem;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 0.5rem;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+        }
+
+        .table-header {
+            display: grid;
+            grid-template-columns: 3fr 2fr 1fr 2fr 1fr 1fr 2fr;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #374151;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 3fr 2fr 1fr 2fr 1fr 1fr 2fr;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .table-row:hover {
+            background: #f9fafb;
+        }
+
+        .part-number-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .expand-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #9ca3af;
+            padding: 0.25rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .expand-btn:hover {
+            color: #4b5563;
+        }
+
+        .part-number-input {
+            font-weight: 500;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid transparent;
+            padding: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .part-number-input:hover {
+            border-bottom-color: #d1d5db;
+        }
+
+        .part-number-input:focus {
+            outline: none;
+            border-bottom-color: #2563eb;
+        }
+
+        .level-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: #dbeafe;
+            color: #1e40af;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 0.5rem;
+            background: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.complete {
+            background: #10b981;
+        }
+
+        .progress-fill.incomplete {
+            background: #3b82f6;
+        }
+
+        .progress-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .qty-input {
+            width: 4rem;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            text-align: center;
+            font-size: 0.875rem;
+        }
+
+        .stock-btn {
+            width: 2rem;
+            height: 2rem;
+            border: 2px solid #d1d5db;
+            border-radius: 9999px;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .stock-btn:hover {
+            border-color: #9ca3af;
+        }
+
+        .stock-btn.in-stock {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            padding: 0.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            display: flex;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .icon-btn.edit {
+            color: #2563eb;
+        }
+
+        .icon-btn.delete {
+            color: #dc2626;
+        }
+
+        .sidebar {
+            width: 20rem;
+            background: white;
+            border-left: 1px solid #e5e7eb;
+            overflow: auto;
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f9fafb;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1rem;
+            color: #111827;
+            margin-bottom: 0.25rem;
+        }
+
+        .sidebar-header p {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .priority-item {
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .priority-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .priority-title {
+            flex: 1;
+        }
+
+        .priority-title .part-num {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .priority-title .desc {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            max-width: 40rem;
+            width: 90%;
+            max-height: 90vh;
+            overflow: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .bulk-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .bulk-row input {
+            flex: 1;
+        }
+
+        .bulk-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .add-row-btn {
+            width: 100%;
+            padding: 0.5rem;
+            border: 2px dashed #d1d5db;
+            border-radius: 0.5rem;
+            background: none;
+            color: #6b7280;
+            font-size: 0.875rem;
+            cursor: pointer;
+            margin-top: 0.75rem;
+        }
+
+        .add-row-btn:hover {
+            background: #f9fafb;
+        }
+
+        .empty-state {
+            padding: 3rem 1rem;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        .switch-btn {
+            background: none;
+            border: none;
+            color: #2563eb;
+            font-size: 0.875rem;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .switch-btn:hover {
+            color: #1d4ed8;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        svg {
+            width: 1.125rem;
+            height: 1.125rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-top">
+                    <div class="header-title">
+                        <h1>Assembly Monitor</h1>
+                        <p>BOM Tracking & Completion Analysis</p>
+                    </div>
+                    <div class="header-actions">
+                        <span class="save-status" id="saveStatus">✓ All Changes Saved</span>
+                        <button class="btn btn-success" onclick="openQuantityPanel()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <path d="m21 21-4.35-4.35"></path>
+                            </svg>
+                            Quick Quantity
+                        </button>
+                        <button class="btn btn-primary" onclick="openAddModal()">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 5v14m-7-7h14"></path>
+                            </svg>
+                            Add Part
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <div class="search-box">
+                        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        <input type="text" id="searchInput" placeholder="Search parts..." oninput="filterParts()">
+                    </div>
+                    <button class="btn" onclick="downloadTemplate()">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Template
+                    </button>
+                    <label class="btn">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        Import
+                        <input type="file" id="importFile" accept=".xlsx,.xls" onchange="importFromExcel(event)">
+                    </label>
+                    <button class="btn" onclick="exportToExcel()">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                        </svg>
+                        Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Parts List -->
+            <div class="parts-list">
+                <div class="table-container">
+                    <div class="table-header">
+                        <div>Part Number</div>
+                        <div>Description</div>
+                        <div>Level</div>
+                        <div>Completion</div>
+                        <div>Qty</div>
+                        <div>Stock</div>
+                        <div>Actions</div>
+                    </div>
+                    <div id="partsTable"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>Assembly Priorities</h2>
+                <p>Ready to start</p>
+            </div>
+            <div id="priorityList"></div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Part</h2>
+                <button class="switch-btn" id="switchBtn" onclick="toggleBulkMode()">Switch to Bulk Add</button>
+            </div>
+            <div id="singleForm">
+                <div class="form-group">
+                    <label>Part Number</label>
+                    <input type="text" id="partNumber" placeholder="Enter part number">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="description" placeholder="Enter description">
+                </div>
+                <div class="form-group">
+                    <label>Level</label>
+                    <input type="number" id="level" min="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Parent Assembly</label>
+                    <select id="parentPart">
+                        <option value="">None (Top Level)</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" style="flex:1" onclick="savePart()">Add Part</button>
+                    <button class="btn" style="flex:1" onclick="closeAddModal()">Cancel</button>
+                </div>
+            </div>
+            <div id="bulkForm" style="display:none;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Level (for all)</label>
+                        <input type="number" id="bulkLevel" min="1" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Parent Assembly (for all)</label>
+                        <select id="bulkParent">
+                            <option value="">None (Top Level)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="bulk-container">
+                    <div id="bulkRows"></div>
+                    <button class="add-row-btn" onclick="addBulkRow()">+ Add Row</button>
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-primary" style="flex:1" onclick="saveBulkParts()">Save All</button>
+                    <button class="btn" style="flex:1" onclick="closeAddModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Part</h2>
+            </div>
+            <div class="form-group">
+                <label>Part Number</label>
+                <input type="text" id="editPartNumber">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="editDescription">
+            </div>
+            <div class="form-group">
+                <label>Level</label>
+                <input type="number" id="editLevel" min="1">
+            </div>
+            <div class="form-group">
+                <label>Quantity</label>
+                <input type="number" id="editQuantity" min="0">
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-primary" style="flex:1" onclick="updatePart()">Update Part</button>
+                <button class="btn" style="flex:1" onclick="closeEditModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation -->
+    <div class="modal" id="deleteModal">
+        <div class="modal-content" style="max-width: 28rem;">
+            <div class="modal-header">
+                <h2>Confirm Delete</h2>
+            </div>
+            <p id="deleteMessage" style="color: #6b7280; margin-bottom: 1.5rem;"></p>
+            <div class="form-actions">
+                <button class="btn" style="flex:1; background:#dc2626; color:white; border-color:#dc2626;" onclick="confirmDelete()">Delete</button>
+                <button class="btn" style="flex:1" onclick="closeDeleteModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quantity Panel -->
+    <div class="modal" id="quantityModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Quick Quantity Update</h2>
+                <button class="icon-btn" onclick="closeQuantityPanel()">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="search-box" style="margin-bottom: 1rem;">
+                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                <input type="text" id="quantitySearch" placeholder="Search by part number..." oninput="filterQuantityParts()">
+            </div>
+            <div id="quantityList" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; max-height: 60vh; overflow: auto;"></div>
+        </div>
+    </div>
+
+    <script>
+        let parts = [];
+        let expandedItems = new Set();
+        let editingPartId = null;
+        let deletePartId = null;
+        let bulkMode = false;
+        let bulkRowCount = 1;
+
+        // Load data on startup
+        loadData();
+
+        function loadData() {
+            const saved = localStorage.getItem('assemblyBomData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                parts = data.parts || [];
+                expandedItems = new Set(data.expanded || []);
+            }
+            renderParts();
+            renderPriorities();
+        }
+
+        function saveData() {
+            document.getElementById('saveStatus').textContent = 'Saving...';
+            document.getElementById('saveStatus').style.color = '#2563eb';
+            
+            setTimeout(() => {
+                localStorage.setItem('assemblyBomData', JSON.stringify({
+                    parts: parts,
+                    expanded: Array.from(expandedItems)
+                }));
+                document.getElementById('saveStatus').textContent = '✓ All Changes Saved';
+                document.getElementById('saveStatus').style.color = '#10b981';
+            }, 500);
+        }
+
+        function getChildren(parentPartNumber) {
+            return parts.filter(p => p.parentPartNumber === parentPartNumber);
+        }
+
+        function getAllDescendants(partNumber) {
+            const descendants = [];
+            const children = getChildren(partNumber);
+            
+            for (const child of children) {
+                descendants.push(child);
+                descendants.push(...getAllDescendants(child.partNumber));
+            }
+            
+            return descendants;
+        }
+
+        function getCompletionPercentage(partNumber) {
+            const descendants = getAllDescendants(partNumber);
+            
+            if (descendants.length === 0) return null;
+            
+            const inStockCount = descendants.filter(d => d.inStock).length;
+            return Math.round((inStockCount / descendants.length) * 100);
+        }
+
+        function buildHierarchy() {
+            const hierarchy = [];
+            const topLevel = parts.filter(p => !p.parentPartNumber || !parts.find(parent => parent.partNumber === p.parentPartNumber));
+            
+            function addWithChildren(part, indent = 0) {
+                hierarchy.push({ ...part, indent });
+                
+                const children = getChildren(part.partNumber);
+                if (children.length > 0 && expandedItems.has(part.partNumber)) {
+                    children.forEach(child => addWithChildren(child, indent + 1));
+                }
+            }
+
+            topLevel.forEach(part => addWithChildren(part));
+            return hierarchy;
+        }
+
+        function renderParts() {
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            let hierarchy = buildHierarchy();
+            
+            // Filter hierarchy based on search
+            if (searchQuery) {
+                hierarchy = hierarchy.filter(part => 
+                    part.partNumber.toLowerCase().includes(searchQuery) ||
+                    part.description.toLowerCase().includes(searchQuery)
+                );
+            }
+            
+            const container = document.getElementById('partsTable');
+            
+            if (hierarchy.length === 0) {
+                if (searchQuery) {
+                    container.innerHTML = '<div class="empty-state">No parts found matching your search.</div>';
+                } else {
+                    container.innerHTML = '<div class="empty-state">No parts added yet. Click "Add Part" to get started.</div>';
+                }
+                return;
+            }
+
+            container.innerHTML = hierarchy.map(part => {
+                const children = getChildren(part.partNumber);
+                const hasChildren = children.length > 0;
+                const completion = getCompletionPercentage(part.partNumber);
+                const isExpanded = expandedItems.has(part.partNumber);
+
+                return `
+                    <div class="table-row">
+                        <div class="part-number-cell" style="padding-left: ${part.indent * 24}px;">
+                            ${hasChildren ? `
+                                <button class="expand-btn" onclick="toggleExpand('${part.partNumber}')">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        ${isExpanded ? 
+                                            '<path d="m19 9-7 7-7-7"></path>' : 
+                                            '<path d="m9 18 6-6-6-6"></path>'}
+                                    </svg>
+                                </button>
+                            ` : ''}
+                            <input type="text" class="part-number-input" value="${part.partNumber}" 
+                                onchange="updatePartNumber('${part.id}', this.value)">
+                        </div>
+                        <div style="font-size: 0.875rem; color: #6b7280;">${part.description}</div>
+                        <div>
+                            <span class="level-badge">L${part.level}</span>
+                        </div>
+                        <div>
+                            ${completion !== null ? `
+                                <div class="progress-bar">
+                                    <div class="progress-track">
+                                        <div class="progress-fill ${completion === 100 ? 'complete' : 'incomplete'}" 
+                                            style="width: ${completion}%"></div>
+                                    </div>
+                                    <span class="progress-text">${completion}%</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div>
+                            <input type="number" class="qty-input" value="${part.quantity}" min="0"
+                                onchange="updateQuantity('${part.id}', this.value)">
+                        </div>
+                        <div>
+                            <button class="stock-btn ${part.inStock ? 'in-stock' : ''}" 
+                                onclick="toggleStock('${part.id}')">
+                                ${part.inStock ? `
+                                    <svg fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24">
+                                        <path d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                ` : ''}
+                            </button>
+                        </div>
+                        <div class="actions-cell">
+                            <button class="icon-btn edit" onclick="openEditModal('${part.id}')">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </button>
+                            <button class="icon-btn delete" onclick="openDeleteModal('${part.id}')">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            updateParentSelects();
+        }
+
+        function renderPriorities() {
+            const assemblies = parts.filter(p => getChildren(p.partNumber).length > 0);
+            const priorities = assemblies.map(a => ({
+                ...a,
+                completion: getCompletionPercentage(a.partNumber)
+            })).sort((a, b) => b.completion - a.completion);
+
+            const container = document.getElementById('priorityList');
+            
+            if (priorities.length === 0) {
+                container.innerHTML = '<div class="empty-state">No assemblies yet</div>';
+                return;
+            }
+
+            container.innerHTML = priorities.map(asm => `
+                <div class="priority-item">
+                    <div class="priority-header">
+                        <div class="priority-title">
+                            <div class="part-num">${asm.partNumber}</div>
+                            <div class="desc">${asm.description}</div>
+                        </div>
+                        <span class="level-badge">L${asm.level}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-track">
+                            <div class="progress-fill ${asm.completion === 100 ? 'complete' : 'incomplete'}" 
+                                style="width: ${asm.completion}%"></div>
+                        </div>
+                        <span class="progress-text">${asm.completion}%</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleExpand(partNumber) {
+            if (expandedItems.has(partNumber)) {
+                expandedItems.delete(partNumber);
+            } else {
+                expandedItems.add(partNumber);
+            }
+            renderParts();
+            saveData();
+        }
+
+        function toggleStock(partId) {
+            const part = parts.find(p => p.id === partId);
+            if (part) {
+                part.inStock = !part.inStock;
+                renderParts();
+                renderPriorities();
+                saveData();
+            }
+        }
+
+        function updateQuantity(partId, value) {
+            const part = parts.find(p => p.id === partId);
+            if (part) {
+                part.quantity = Math.max(0, parseInt(value) || 0);
+                saveData();
+            }
+        }
+
+        function updatePartNumber(partId, newPartNumber) {
+            const part = parts.find(p => p.id === partId);
+            if (!part) return;
+            
+            const oldPartNumber = part.partNumber;
+            part.partNumber = newPartNumber;
+            
+            // Update children references
+            parts.forEach(p => {
+                if (p.parentPartNumber === oldPartNumber) {
+                    p.parentPartNumber = newPartNumber;
+                }
+            });
+            
+            renderParts();
+            renderPriorities();
+            saveData();
+        }
+
+        function openAddModal() {
+            document.getElementById('addModal').classList.add('active');
+            updateParentSelects();
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').classList.remove('active');
+            resetAddForm();
+        }
+
+        function resetAddForm() {
+            document.getElementById('partNumber').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('level').value = '1';
+            document.getElementById('parentPart').value = '';
+            bulkMode = false;
+            bulkRowCount = 1;
+            document.getElementById('singleForm').style.display = 'block';
+            document.getElementById('bulkForm').style.display = 'none';
+            document.getElementById('modalTitle').textContent = 'Add Part';
+            document.getElementById('switchBtn').textContent = 'Switch to Bulk Add';
+        }
+
+        function toggleBulkMode() {
+            bulkMode = !bulkMode;
+            if (bulkMode) {
+                document.getElementById('singleForm').style.display = 'none';
+                document.getElementById('bulkForm').style.display = 'block';
+                document.getElementById('modalTitle').textContent = 'Bulk Add Parts';
+                document.getElementById('switchBtn').textContent = 'Switch to Single Add';
+                renderBulkRows();
+            } else {
+                document.getElementById('singleForm').style.display = 'block';
+                document.getElementById('bulkForm').style.display = 'none';
+                document.getElementById('modalTitle').textContent = 'Add Part';
+                document.getElementById('switchBtn').textContent = 'Switch to Bulk Add';
+            }
+            updateParentSelects();
+        }
+
+        function renderBulkRows() {
+            const container = document.getElementById('bulkRows');
+            let html = '';
+            for (let i = 0; i < bulkRowCount; i++) {
+                html += `
+                    <div class="bulk-row">
+                        <input type="text" placeholder="Part Number" id="bulkPartNum${i}">
+                        <input type="text" placeholder="Description" id="bulkDesc${i}">
+                        ${bulkRowCount > 1 ? `
+                            <button class="icon-btn delete" onclick="removeBulkRow(${i})">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function addBulkRow() {
+            bulkRowCount++;
+            renderBulkRows();
+        }
+
+        function removeBulkRow(index) {
+            bulkRowCount--;
+            renderBulkRows();
+        }
+
+        function savePart() {
+            const partNumber = document.getElementById('partNumber').value.trim();
+            if (!partNumber) return;
+
+            const newPart = {
+                id: Date.now().toString(),
+                partNumber: partNumber,
+                description: document.getElementById('description').value.trim(),
+                level: parseInt(document.getElementById('level').value) || 1,
+                parentPartNumber: document.getElementById('parentPart').value || null,
+                inStock: false,
+                quantity: 1
+            };
+
+            parts.push(newPart);
+            renderParts();
+            renderPriorities();
+            saveData();
+            closeAddModal();
+        }
+
+        function saveBulkParts() {
+            const level = parseInt(document.getElementById('bulkLevel').value) || 1;
+            const parent = document.getElementById('bulkParent').value || null;
+            
+            const newParts = [];
+            for (let i = 0; i < bulkRowCount; i++) {
+                const partNum = document.getElementById(`bulkPartNum${i}`).value.trim();
+                const desc = document.getElementById(`bulkDesc${i}`).value.trim();
+                
+                if (partNum) {
+                    newParts.push({
+                        id: Date.now().toString() + Math.random(),
+                        partNumber: partNum,
+                        description: desc,
+                        level: level,
+                        parentPartNumber: parent,
+                        inStock: false,
+                        quantity: 1
+                    });
+                }
+            }
+
+            if (newParts.length > 0) {
+                parts.push(...newParts);
+                renderParts();
+                renderPriorities();
+                saveData();
+                closeAddModal();
+            }
+        }
+
+        function openEditModal(partId) {
+            editingPartId = partId;
+            const part = parts.find(p => p.id === partId);
+            if (!part) return;
+
+            document.getElementById('editPartNumber').value = part.partNumber;
+            document.getElementById('editDescription').value = part.description;
+            document.getElementById('editLevel').value = part.level;
+            document.getElementById('editQuantity').value = part.quantity;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            editingPartId = null;
+        }
+
+        function updatePart() {
+            const part = parts.find(p => p.id === editingPartId);
+            if (!part) return;
+
+            const oldPartNumber = part.partNumber;
+            part.partNumber = document.getElementById('editPartNumber').value.trim();
+            part.description = document.getElementById('editDescription').value.trim();
+            part.level = parseInt(document.getElementById('editLevel').value) || 1;
+            part.quantity = parseInt(document.getElementById('editQuantity').value) || 0;
+
+            // Update children references
+            if (oldPartNumber !== part.partNumber) {
+                parts.forEach(p => {
+                    if (p.parentPartNumber === oldPartNumber) {
+                        p.parentPartNumber = part.partNumber;
+                    }
+                });
+            }
+
+            renderParts();
+            renderPriorities();
+            saveData();
+            closeEditModal();
+        }
+
+        function openDeleteModal(partId) {
+            deletePartId = partId;
+            const part = parts.find(p => p.id === partId);
+            if (!part) return;
+
+            const children = getChildren(part.partNumber);
+            let message = `Are you sure you want to delete <strong>${part.partNumber}</strong>?`;
+            if (children.length > 0) {
+                message += '<br><span style="color:#ea580c; font-size:0.875rem;">Note: This part has child components that will be unlinked.</span>';
+            }
+
+            document.getElementById('deleteMessage').innerHTML = message;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            deletePartId = null;
+        }
+
+        function confirmDelete() {
+            const part = parts.find(p => p.id === deletePartId);
+            if (!part) return;
+
+            // Remove part and update references
+            parts = parts.filter(p => p.id !== deletePartId).map(p => 
+                p.parentPartNumber === part.partNumber 
+                    ? { ...p, parentPartNumber: null } 
+                    : p
+            );
+
+            renderParts();
+            renderPriorities();
+            saveData();
+            closeDeleteModal();
+        }
+
+        function openQuantityPanel() {
+            document.getElementById('quantityModal').classList.add('active');
+            document.getElementById('quantitySearch').value = '';
+            renderQuantityList();
+        }
+
+        function closeQuantityPanel() {
+            document.getElementById('quantityModal').classList.remove('active');
+        }
+
+        function filterQuantityParts() {
+            renderQuantityList();
+        }
+
+        function renderQuantityList() {
+            const search = document.getElementById('quantitySearch').value.toLowerCase();
+            const filtered = parts.filter(p => p.partNumber.toLowerCase().includes(search));
+            const container = document.getElementById('quantityList');
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-state">${search ? 'No parts found' : 'Start typing to search...'}</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(part => `
+                <div style="padding: 1rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 1rem;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">${part.partNumber}</div>
+                        <div style="font-size: 0.875rem; color: #6b7280;">${part.description}</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <label style="font-size: 0.875rem; font-weight: 500; color: #374151;">Qty:</label>
+                        <input type="number" class="qty-input" value="${part.quantity}" min="0"
+                            style="width: 5rem;"
+                            onchange="updateQuantityInPanel('${part.id}', this.value)">
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateQuantityInPanel(partId, value) {
+            updateQuantity(partId, value);
+            renderParts();
+        }
+
+        function filterParts() {
+            renderParts();
+        }
+
+        function updateParentSelects() {
+            const parentSelect = document.getElementById('parentPart');
+            const bulkParentSelect = document.getElementById('bulkParent');
+            
+            const options = '<option value="">None (Top Level)</option>' + 
+                parts.map(p => `<option value="${p.partNumber}">${p.partNumber} - ${p.description}</option>`).join('');
+            
+            parentSelect.innerHTML = options;
+            bulkParentSelect.innerHTML = options;
+        }
+
+        function downloadTemplate() {
+            const template = [
+                { PartNumber: 'MAIN-001', Description: 'Main Assembly', Level: 1, ParentPartNumber: '', Quantity: 1 },
+                { PartNumber: 'SUB-001', Description: 'Sub Assembly 1', Level: 2, ParentPartNumber: 'MAIN-001', Quantity: 2 },
+                { PartNumber: 'PART-001', Description: 'Component 1', Level: 3, ParentPartNumber: 'SUB-001', Quantity: 4 }
+            ];
+
+            const ws = XLSX.utils.json_to_sheet(template);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Template');
+            XLSX.writeFile(wb, 'BOM_Template.xlsx');
+        }
+
+        function exportToExcel() {
+            const exportData = parts.map(p => ({
+                PartNumber: p.partNumber,
+                Description: p.description,
+                Level: p.level,
+                ParentPartNumber: p.parentPartNumber || '',
+                InStock: p.inStock ? 'Yes' : 'No',
+                Quantity: p.quantity
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'BOM');
+            XLSX.writeFile(wb, `BOM_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                const importedParts = jsonData.map(row => ({
+                    id: Date.now().toString() + Math.random(),
+                    partNumber: row.PartNumber || '',
+                    description: row.Description || '',
+                    level: parseInt(row.Level) || 1,
+                    parentPartNumber: row.ParentPartNumber || null,
+                    inStock: row.InStock === 'Yes',
+                    quantity: parseInt(row.Quantity) || 1
+                }));
+
+                parts.push(...importedParts);
+                renderParts();
+                renderPriorities();
+                saveData();
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+    </script>
+</body>
+</html>
